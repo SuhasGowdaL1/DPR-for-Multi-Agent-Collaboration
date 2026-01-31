@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DPR Framework Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+    />
+    <style>
+      #chat-box {
+        height: 400px;
+        overflow-y: scroll;
+        border: 1px solid #ccc;
+        padding: 15px;
+        background: #f9f9f9;
+      }
+      .agent-Analyst {
+        color: #0d6efd;
+      }
+      .agent-Architect {
+        color: #198754;
+      }
+      .agent-Reviewer {
+        color: #dc3545;
+      }
+      .agent-HUMAN_GUIDE {
+        color: #6610f2;
+        font-weight: bold;
+        border-left: 4px solid #6610f2;
+        padding-left: 10px;
+      }
+      .metric-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div class="container py-5">
+      <h2 class="mb-4">DPR Framework: Multi-Agent Governance</h2>
+
+      <!-- Task Setup Panel -->
+      <div class="alert alert-info mb-4" id="task-setup-panel">
+        <h5>📋 Task Specification (Required)</h5>
+        <div class="input-group">
+          <textarea
+            id="task-input"
+            class="form-control"
+            rows="3"
+            placeholder="Enter the task/problem for agents to collaborate on. E.g., 'Design a scalable microservices architecture for an e-commerce platform'"
+          ></textarea>
+          <button onclick="setTask()" class="btn btn-success">Set Task</button>
+        </div>
+        <small class="text-muted mt-2 d-block">
+          The task will be provided to all agents as context for their
+          collaboration.
+        </small>
+      </div>
+
+      <div class="row">
+        <div class="col-md-8">
+          <div id="chat-box" class="mb-3 rounded"></div>
+          <div class="d-flex gap-2 mb-3">
+            <button onclick="runStep()" class="btn btn-primary">
+              Next Agent Turn
+            </button>
+            <button onclick="pauseProtocol()" class="btn btn-warning">
+              ⏸ Pause
+            </button>
+            <button onclick="resumeProtocol()" class="btn btn-info">
+              ▶ Resume
+            </button>
+            <button onclick="resetProtocol()" class="btn btn-secondary">
+              🔄 Reset
+            </button>
+          </div>
+
+          <div class="input-group">
+            <span class="input-group-text">Human Guide Hint</span>
+            <input
+              type="text"
+              id="human-hint"
+              class="form-control"
+              placeholder="Inject reasoning to break loops..."
+            />
+            <button onclick="sendHint()" class="btn btn-warning">
+              Inject Hint
+            </button>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <h4>Current Task</h4>
+          <div class="metric-card mb-3">
+            <small id="current-task" class="text-muted">No task set yet</small>
+          </div>
+
+          <h4>Live Evaluation</h4>
+          <div class="metric-card mb-3">
+            <h6>Fairness Score</h6>
+            <div class="progress">
+              <div
+                id="fairness-bar"
+                class="progress-bar"
+                role="progressbar"
+                style="width: 0%"
+              ></div>
+            </div>
+            <small id="fairness-val">0.0</small>
+          </div>
+          <div class="metric-card mb-3">
+            <h6>System Status</h6>
+            <span id="system-status" class="badge bg-secondary">Idle</span>
+          </div>
+          <div class="metric-card">
+            <h6>Token Holder</h6>
+            <span id="token-holder" class="badge bg-info">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let taskSet = false;
+
+      // Initialize on page load
+      async function initializeUI() {
+        await checkTask();
+      }
+
+      async function checkTask() {
+        const res = await fetch("/api/task");
+        const data = await res.json();
+        if (data.task_set) {
+          taskSet = true;
+          document.getElementById("task-input").value = data.task;
+          document.getElementById("current-task").innerText = data.task;
+          document.getElementById("task-setup-panel").style.display = "none";
+        }
+        await updateStatus();
+      }
+
+      async function setTask() {
+        const task = document.getElementById("task-input").value.trim();
+        if (!task) {
+          alert("Please enter a task");
+          return;
+        }
+
+        const res = await fetch("/api/task", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task: task }),
+        });
+
+        if (!res.ok) {
+          alert("Error setting task");
+          return;
+        }
+
+        const data = await res.json();
+        taskSet = true;
+        document.getElementById("current-task").innerText = data.task;
+        document.getElementById("task-setup-panel").style.display = "none";
+        document.getElementById("system-status").className = "badge bg-success";
+        document.getElementById("system-status").innerText = "Ready";
+        alert("Task set! You can now start collaboration.");
+      }
+
+      async function runStep() {
+        if (!taskSet) {
+          alert("Please set a task first");
+          return;
+        }
+
+        const res = await fetch("/step", { method: "POST" });
+        const data = await res.json();
+
+        if (data.error) {
+          alert(data.error);
+          document.getElementById("system-status").className =
+            "badge bg-danger";
+          document.getElementById("system-status").innerText = data.error;
+        } else {
+          appendMessage(data.entry);
+          updateMetrics(data.metrics);
+          if (data.token_holder) {
+            document.getElementById("token-holder").innerText =
+              data.token_holder;
+          }
+        }
+      }
+
+      async function pauseProtocol() {
+        const res = await fetch("/api/pause", { method: "POST" });
+        const data = await res.json();
+        alert("Protocol paused");
+        document.getElementById("system-status").className = "badge bg-warning";
+        document.getElementById("system-status").innerText = "Paused";
+      }
+
+      async function resumeProtocol() {
+        const res = await fetch("/api/resume", { method: "POST" });
+        const data = await res.json();
+        alert("Protocol resumed");
+        document.getElementById("system-status").className = "badge bg-success";
+        document.getElementById("system-status").innerText = "Running";
+      }
+
+      async function resetProtocol() {
+        if (confirm("Are you sure you want to reset the protocol?")) {
+          const res = await fetch("/api/reset", { method: "POST" });
+          const data = await res.json();
+          document.getElementById("chat-box").innerHTML = "";
+          taskSet = false;
+          document.getElementById("task-setup-panel").style.display = "block";
+          document.getElementById("task-input").value = "";
+          document.getElementById("current-task").innerText = "No task set yet";
+          document.getElementById("system-status").className =
+            "badge bg-secondary";
+          document.getElementById("system-status").innerText = "Idle";
+          document.getElementById("token-holder").innerText = "—";
+          alert("Protocol reset");
+        }
+      }
+
+      async function sendHint() {
+        const hint = document.getElementById("human-hint").value.trim();
+        if (!hint) {
+          alert("Please enter a hint");
+          return;
+        }
+
+        const res = await fetch("/api/inject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ guidance: hint }),
+        });
+
+        if (!res.ok) {
+          alert("Error sending hint");
+          return;
+        }
+
+        const data = await res.json();
+        appendMessage({ agent: "HUMAN_GUIDE", text: "GUIDANCE: " + hint });
+        document.getElementById("human-hint").value = "";
+        document.getElementById("system-status").className = "badge bg-success";
+        document.getElementById("system-status").innerText = "Redirected";
+      }
+
+      async function updateStatus() {
+        const res = await fetch("/api/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.metrics) {
+            updateMetrics(data.metrics);
+          }
+        }
+      }
+
+      function appendMessage(entry) {
+        const box = document.getElementById("chat-box");
+        const msg = document.createElement("div");
+        msg.className = `mb-2 agent-${entry.agent}`;
+        msg.innerHTML = `<strong>${entry.agent}:</strong> ${entry.text}`;
+        box.appendChild(msg);
+        box.scrollTop = box.scrollHeight;
+      }
+
+      function updateMetrics(metrics) {
+        const bar = document.getElementById("fairness-bar");
+        const val = metrics.fairness * 100;
+        bar.style.width = val + "%";
+        document.getElementById("fairness-val").innerText = metrics.fairness;
+        document.getElementById("system-status").innerText = metrics.status;
+        document.getElementById("system-status").className =
+          metrics.status === "Coherent"
+            ? "badge bg-success"
+            : "badge bg-warning";
+      }
+
+      // Initialize on page load
+      window.addEventListener("DOMContentLoaded", initializeUI);
+    </script>
+  </body>
+</html>
