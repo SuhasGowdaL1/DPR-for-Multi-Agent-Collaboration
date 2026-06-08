@@ -1,0 +1,17 @@
+sudo apt update
+sudo apt install -y curl ca-certificates
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+source ~/.bashrc
+
+nvm install --lts
+nvm use --lts
+
+node --version
+npm --version
+which npm
+
+
+cd /home/suhas/Workspace/code-coverage-analysis/web/frontend
+npm install
+npm run dev

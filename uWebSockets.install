@@ -1,0 +1,50 @@
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  git \
+  cmake \
+  ninja-build \
+  pkg-config \
+  libssl-dev \
+  zlib1g-dev \
+  libzstd-dev \
+  libcurl4-openssl-dev \
+  libedit-dev \
+  llvm-18 \
+  llvm-18-dev \
+  llvm-18-tools \
+  clang-18 \
+  libclang-18-dev \
+  libclang-cpp18 \
+  libclang-rt-18-dev
+
+mkdir -p ~/deps
+cd ~/deps
+
+if [ -d uSockets/.git ]; then
+  git -C uSockets pull --ff-only
+else
+  git clone https://github.com/uNetworking/uSockets.git
+fi
+cd uSockets
+make WITH_OPENSSL=1
+sudo install -m 0644 uSockets.a /usr/local/lib/libuSockets.a
+sudo install -m 0644 src/libusockets.h /usr/local/include/libusockets.h
+sudo ldconfig
+
+cd ~/deps
+if [ -d uWebSockets/.git ]; then
+  git -C uWebSockets pull --ff-only
+  git -C uWebSockets submodule update --init --recursive
+else
+  git clone --recurse-submodules https://github.com/uNetworking/uWebSockets.git
+fi
+cd uWebSockets
+sudo mkdir -p /usr/local/include/uwebsockets
+sudo cp -r src/* /usr/local/include/uwebsockets/
+
+
+cd /home/suhas/Workspace/code-coverage-analysis
+cmake -S . -B build-web -DCFGGEN_BUILD_WEB_BACKEND=ON
+cmake --build build-web --target cfg_generator callgraph_generator runtime_callgraph_generator runtime_web_backend
+./build-web/runtime_web_backend 9001
