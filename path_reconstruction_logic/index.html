@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runtime Path Reconstruction</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Runtime Path Reconstruction</h1>
+    <div class="subtitle">Stack + CFG feasibility + static callgraph filtering + candidate runtime graphs.</div>
+  </header>
+
+  <section class="stage">
+    <aside class="panel left">
+      <h2 id="title"></h2>
+      <p class="caption" id="caption"></p>
+      <div class="tokens" id="tokens"></div>
+      <table aria-label="Feasible caller filtering">
+        <thead>
+          <tr>
+            <th>Path</th>
+            <th>CFG feasible</th>
+            <th>Static check</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="caller-rows"></tbody>
+      </table>
+    </aside>
+
+    <section class="panel right">
+      <div class="path-head">
+        <h2>Candidate Runtime Graphs</h2>
+        <div class="step-count" id="step-count"></div>
+      </div>
+      <div class="path-grid" id="paths"></div>
+    </section>
+  </section>
+
+  <footer>
+    <div class="controls">
+      <button id="prev" type="button">Prev</button>
+      <button class="primary" id="play" type="button">Play</button>
+      <button id="next" type="button">Next</button>
+    </div>
+    <input id="slider" type="range" min="0" max="7" value="0" step="1" aria-label="Animation step">
+    <div class="step-count">Static demo: <code>web/path-reconstruction-animation</code></div>
+  </footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
